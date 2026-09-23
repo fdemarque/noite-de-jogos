@@ -12,7 +12,7 @@ export const GamesHub: React.FC<GamesHubProps> = ({ onSelectGame }) => {
     {
       id: 'absolute-cinema',
       title: 'Absolute Cinema',
-      description: 'Catraca de filmes com desafios de mímica, desenho ou cantoria!',
+      description: 'Catraca de filmes com desafios de mímica ou desenho!',
       icon: Clapperboard,
       status: 'active' as const,
       badge: 'Disponível',

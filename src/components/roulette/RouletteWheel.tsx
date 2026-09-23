@@ -10,6 +10,13 @@ interface RouletteWheelProps {
   setIsSpinning: (spinning: boolean) => void;
 }
 
+interface ComputedSlice {
+  item: PrendaItem;
+  startAngle: number;
+  endAngle: number;
+  sliceAngle: number;
+}
+
 export const RouletteWheel: React.FC<RouletteWheelProps> = ({
   items,
   onWinner,
@@ -24,191 +31,274 @@ export const RouletteWheel: React.FC<RouletteWheelProps> = ({
   // Active items only
   const activeItems = items.filter((item) => item.active);
 
+  // Compute total weight and angular partitions for each active slice
+  const getComputedSlices = useCallback((): ComputedSlice[] => {
+    if (activeItems.length === 0) return [];
+
+    const totalWeight = activeItems.reduce(
+      (sum, item) => sum + Math.max(item.weight || 1, 1),
+      0
+    );
+
+    let currentAngle = 0;
+    return activeItems.map((item) => {
+      const weight = Math.max(item.weight || 1, 1);
+      const sliceAngle = (2 * Math.PI * weight) / totalWeight;
+      const startAngle = currentAngle;
+      const endAngle = currentAngle + sliceAngle;
+      currentAngle = endAngle;
+
+      return {
+        item,
+        startAngle,
+        endAngle,
+        sliceAngle,
+      };
+    });
+  }, [activeItems]);
+
   // Render wheel on canvas
-  const drawWheel = useCallback((currentRotation: number) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  const drawWheel = useCallback(
+    (currentRotation: number) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
-    const width = canvas.width;
-    const height = canvas.height;
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const radius = width / 2 - 24;
+      const width = canvas.width;
+      const height = canvas.height;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const radius = width / 2 - 24;
 
-    ctx.clearRect(0, 0, width, height);
+      ctx.clearRect(0, 0, width, height);
 
-    if (activeItems.length === 0) {
-      // Empty wheel state
+      const slices = getComputedSlices();
+
+      if (slices.length === 0) {
+        // Empty wheel state
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+        ctx.fillStyle = '#E2E8F0';
+        ctx.fill();
+        ctx.strokeStyle = '#CBD5E1';
+        ctx.lineWidth = 6;
+        ctx.stroke();
+
+        ctx.fillStyle = '#64748B';
+        ctx.font = 'bold 16px "Plus Jakarta Sans", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Ative itens para girar!', centerX, centerY);
+        return;
+      }
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(currentRotation);
+
+      // Draw each slice with proportional angle
+      slices.forEach((slice) => {
+        const { item, startAngle, endAngle, sliceAngle } = slice;
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, radius, startAngle, endAngle);
+        ctx.closePath();
+
+        // Slice background
+        ctx.fillStyle = item.color;
+        ctx.fill();
+
+        // Slice border
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Render text positioned at 70% of radius (r * 0.70) with centered anchoring
+        ctx.save();
+        const midAngle = startAngle + sliceAngle / 2;
+        ctx.rotate(midAngle);
+        ctx.translate(radius * 0.70, 0);
+
+        // Center anchored text
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // Adapt font size and truncation based on slice width
+        const fontSize = sliceAngle < 0.5 ? 10 : sliceAngle < 0.8 ? 12 : 13;
+        const maxChars = sliceAngle < 0.5 ? 12 : sliceAngle < 0.8 ? 16 : 20;
+
+        ctx.font = `bold ${fontSize}px "Plus Jakarta Sans", sans-serif`;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+        ctx.fillStyle = '#FFFFFF';
+
+        let displayText = item.text;
+        if (displayText.length > maxChars) {
+          displayText = displayText.slice(0, maxChars - 2) + '...';
+        }
+
+        ctx.fillText(displayText, 0, 0);
+        ctx.restore();
+      });
+
+      // Outer decorative rim
       ctx.beginPath();
-      ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-      ctx.fillStyle = '#E2E8F0';
-      ctx.fill();
-      ctx.strokeStyle = '#CBD5E1';
+      ctx.arc(0, 0, radius + 2, 0, 2 * Math.PI);
+      ctx.strokeStyle = '#FFFFFF';
       ctx.lineWidth = 6;
       ctx.stroke();
 
-      ctx.fillStyle = '#64748B';
-      ctx.font = 'bold 16px "Plus Jakarta Sans", sans-serif';
+      // Rivets / Pegs around border at each slice boundary
+      slices.forEach((slice) => {
+        const pegX = Math.cos(slice.startAngle) * (radius - 2);
+        const pegY = Math.sin(slice.startAngle) * (radius - 2);
+
+        ctx.beginPath();
+        ctx.arc(pegX, pegY, 5, 0, 2 * Math.PI);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+        ctx.shadowBlur = 3;
+        ctx.fill();
+      });
+
+      ctx.restore();
+
+      // Outer Shadow ring
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius + 8, 0, 2 * Math.PI);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.lineWidth = 8;
+      ctx.stroke();
+      ctx.restore();
+
+      // Center Hub (Glass / Golden badge)
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, 38, 0, 2 * Math.PI);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetY = 4;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, 32, 0, 2 * Math.PI);
+      const hubGrad = ctx.createLinearGradient(
+        centerX - 30,
+        centerY - 30,
+        centerX + 30,
+        centerY + 30
+      );
+      hubGrad.addColorStop(0, '#A0C4FF');
+      hubGrad.addColorStop(1, '#FFC6FF');
+      ctx.fillStyle = hubGrad;
+      ctx.fill();
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '800 13px "Plus Jakarta Sans", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('Ative itens para girar!', centerX, centerY);
-      return;
-    }
-
-    const sliceAngle = (2 * Math.PI) / activeItems.length;
-
-    // Draw slices
-    ctx.save();
-    ctx.translate(centerX, centerY);
-    ctx.rotate(currentRotation);
-
-    activeItems.forEach((item, index) => {
-      const startAngle = index * sliceAngle;
-      const endAngle = startAngle + sliceAngle;
-
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.arc(0, 0, radius, startAngle, endAngle);
-      ctx.closePath();
-
-      // Vibrant slice background
-      ctx.fillStyle = item.color;
-      ctx.fill();
-
-      // Slice border
-      ctx.strokeStyle = '#FFFFFF';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-
-      // Render text along slice
-      ctx.save();
-      ctx.rotate(startAngle + sliceAngle / 2);
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-
-      // Contrast text styling
-      ctx.font = 'bold 14px "Plus Jakarta Sans", sans-serif';
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
       ctx.shadowBlur = 4;
-      ctx.shadowOffsetX = 1;
-      ctx.shadowOffsetY = 1;
-      ctx.fillStyle = '#FFFFFF';
-
-      // Truncate long text if needed
-      let displayText = item.text;
-      if (displayText.length > 20) {
-        displayText = displayText.slice(0, 18) + '...';
-      }
-
-      ctx.fillText(displayText, radius - 20, 0);
+      ctx.fillText('GIRAR', centerX, centerY);
       ctx.restore();
-    });
-
-    // Outer decorative rim
-    ctx.beginPath();
-    ctx.arc(0, 0, radius + 2, 0, 2 * Math.PI);
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 6;
-    ctx.stroke();
-
-    // Rivets / Pegs around border
-    activeItems.forEach((_, index) => {
-      const pegAngle = index * sliceAngle;
-      const pegX = Math.cos(pegAngle) * (radius - 2);
-      const pegY = Math.sin(pegAngle) * (radius - 2);
-
-      ctx.beginPath();
-      ctx.arc(pegX, pegY, 5, 0, 2 * Math.PI);
-      ctx.fillStyle = '#FFFFFF';
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-      ctx.shadowBlur = 3;
-      ctx.fill();
-    });
-
-    ctx.restore();
-
-    // Outer Shadow ring
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius + 8, 0, 2 * Math.PI);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-    ctx.lineWidth = 8;
-    ctx.stroke();
-    ctx.restore();
-
-    // Center Hub (Glass / Golden badge)
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, 38, 0, 2 * Math.PI);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetY = 4;
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, 32, 0, 2 * Math.PI);
-    const hubGrad = ctx.createLinearGradient(centerX - 30, centerY - 30, centerX + 30, centerY + 30);
-    hubGrad.addColorStop(0, '#A0C4FF');
-    hubGrad.addColorStop(1, '#FFC6FF');
-    ctx.fillStyle = hubGrad;
-    ctx.fill();
-
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = '800 13px "Plus Jakarta Sans", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
-    ctx.shadowBlur = 4;
-    ctx.fillText('GIRAR', centerX, centerY);
-    ctx.restore();
-  }, [activeItems]);
+    },
+    [getComputedSlices]
+  );
 
   // Initial draw & redraw on items change
   useEffect(() => {
     drawWheel(rotationRef.current);
   }, [drawWheel]);
 
-  // Spin physics engine
+  // Spin physics engine with weighted probability and safe landing point
   const spinWheel = () => {
     if (isSpinning || activeItems.length === 0) return;
+
+    const slices = getComputedSlices();
+    if (slices.length === 0) return;
 
     sound.playPop();
     setIsSpinning(true);
 
-    const fullSpins = 5 + Math.floor(Math.random() * 4); // 5 to 8 full spins
-    const randomOffset = Math.random() * 2 * Math.PI;
-    const totalRotation = fullSpins * 2 * Math.PI + randomOffset;
+    // 1. Sorteio ponderado via distribuição cumulativa de probabilidade
+    const totalWeight = activeItems.reduce(
+      (sum, item) => sum + Math.max(item.weight || 1, 1),
+      0
+    );
+    const randomWeight = Math.random() * totalWeight;
+
+    let cumulative = 0;
+    let chosenSlice = slices[0];
+
+    for (let i = 0; i < slices.length; i++) {
+      cumulative += Math.max(slices[i].item.weight || 1, 1);
+      if (randomWeight < cumulative) {
+        chosenSlice = slices[i];
+        break;
+      }
+    }
+
+    // 2. Escolher um ponto de pouso seguro dentro da fatia sorteada (20% a 80% do arco)
+    // Isso garante que a agulha não pare exatamente sobre a linha divisória
+    const safeOffsetRatio = 0.2 + Math.random() * 0.6;
+    const targetSliceAngle =
+      chosenSlice.startAngle + chosenSlice.sliceAngle * safeOffsetRatio;
+
+    // 3. O ponteiro fixo fica no topo do canvas: 3*PI/2 (270 graus)
+    const pointerAngle = (3 * Math.PI) / 2;
+
+    // Para o ângulo do disco coincidir com a agulha no topo:
+    // (targetRotation + targetSliceAngle) % 2PI == pointerAngle
+    // => targetNormalizedRotation = (pointerAngle - targetSliceAngle + 2PI) % 2PI
+    const targetNormRotation =
+      (pointerAngle - (targetSliceAngle % (2 * Math.PI)) + 2 * Math.PI) %
+      (2 * Math.PI);
 
     const startRotation = rotationRef.current;
-    const duration = 4500; // 4.5 seconds of smooth physical easing
-    const startTime = performance.now();
+    const currentNorm =
+      ((startRotation % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    const diff =
+      (targetNormRotation - currentNorm + 2 * Math.PI) % (2 * Math.PI);
 
-    const sliceAngle = (2 * Math.PI) / activeItems.length;
-    let lastSliceIndex = -1;
+    // 5 a 8 giros completos adicionais para sensação física realista
+    const fullSpins = 5 + Math.floor(Math.random() * 4);
+    const totalRotation = fullSpins * 2 * Math.PI + diff;
+
+    const duration = 4500; // 4.5 segundos de desaceleração suave
+    const startTime = performance.now();
+    let lastSliceId = '';
 
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
 
-      // Ease out cubic for realistic decelerating spin physics
+      // Ease out cubic para desaceleração natural
       const easeProgress = 1 - Math.pow(1 - progress, 3);
       const currentRotation = startRotation + totalRotation * easeProgress;
       rotationRef.current = currentRotation;
 
       drawWheel(currentRotation);
 
-      // Calculate slice under needle (pointer is at top: 3 * Math.PI / 2 or -Math.PI / 2)
-      // Normalize rotation to [0, 2PI)
-      const pointerAngle = (3 * Math.PI) / 2;
-      const normalizedAngle = (pointerAngle - (currentRotation % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-      const currentSliceIndex = Math.floor(normalizedAngle / sliceAngle);
+      // Determinar fatia sob o ponteiro para efeito sonoro de tick
+      const normalizedAngle =
+        (pointerAngle - (currentRotation % (2 * Math.PI)) + 2 * Math.PI) %
+        (2 * Math.PI);
 
-      if (currentSliceIndex !== lastSliceIndex) {
-        lastSliceIndex = currentSliceIndex;
-        // Pitch shifts with speed
+      const activeSliceUnderNeedle = slices.find(
+        (s) => normalizedAngle >= s.startAngle && normalizedAngle < s.endAngle
+      );
+
+      if (
+        activeSliceUnderNeedle &&
+        activeSliceUnderNeedle.item.id !== lastSliceId
+      ) {
+        lastSliceId = activeSliceUnderNeedle.item.id;
         const speedRatio = 1 - progress;
         sound.playTick(500 + speedRatio * 350);
         setNeedleBounce(true);
@@ -218,9 +308,8 @@ export const RouletteWheel: React.FC<RouletteWheelProps> = ({
       if (progress < 1) {
         animFrameRef.current = requestAnimationFrame(animate);
       } else {
-        // Complete spin
+        // Giro concluído exatamente na fatia sorteada com margem segura
         setIsSpinning(false);
-        const winningItem = activeItems[currentSliceIndex % activeItems.length];
 
         sound.playWin();
         confetti({
@@ -230,9 +319,7 @@ export const RouletteWheel: React.FC<RouletteWheelProps> = ({
           colors: ['#A0C4FF', '#FFC6FF', '#BEE1E6', '#FDE2E4', '#FFD166'],
         });
 
-        if (winningItem) {
-          onWinner(winningItem);
-        }
+        onWinner(chosenSlice.item);
       }
     };
 

@@ -15,10 +15,37 @@ interface RouletteScreenProps {
 const PRENDAS_STORAGE_KEY = 'gamenight_filipe_duda_prendas';
 
 export const RouletteScreen: React.FC<RouletteScreenProps> = ({ currentUser }) => {
-  const [prendas, setPrendas] = useLocalStorage<PrendaItem[]>(
+  const [storedPrendas, setStoredPrendas] = useLocalStorage<PrendaItem[]>(
     PRENDAS_STORAGE_KEY,
     DEFAULT_PRENDAS
   );
+
+  // Garantir compatibilidade com itens salvos anteriormente sem weight
+  const prendas = storedPrendas.map((item) => ({
+    ...item,
+    weight: typeof item.weight === 'number' && item.weight > 0
+      ? item.weight
+      : (item.text.includes('Passe a vez') ? 8 : 20),
+  }));
+
+  const setPrendas = (newItems: PrendaItem[] | ((prev: PrendaItem[]) => PrendaItem[])) => {
+    if (typeof newItems === 'function') {
+      setStoredPrendas((prev) => {
+        const evaluated = newItems(prev);
+        return evaluated.map((item) => ({
+          ...item,
+          weight: typeof item.weight === 'number' && item.weight > 0 ? item.weight : 20,
+        }));
+      });
+    } else {
+      setStoredPrendas(
+        newItems.map((item) => ({
+          ...item,
+          weight: typeof item.weight === 'number' && item.weight > 0 ? item.weight : 20,
+        }))
+      );
+    }
+  };
   const [isSpinning, setIsSpinning] = useState(false);
   const [isManagerOpen, setIsManagerOpen] = useState(false);
   const [winningItem, setWinningItem] = useState<PrendaItem | null>(null);

@@ -5,9 +5,12 @@ export interface PrendaItem {
   text: string;
   color: string;
   active: boolean;
+  weight: number; // Peso/porcentagem relativa (ex: de 1 a 100)
 }
 
-export type ChallengeType = 'mimica' | 'desenho' | 'cantando';
+export type RouletteItem = PrendaItem;
+
+export type ChallengeType = 'mimica' | 'desenho';
 
 export interface ChallengeModifier {
   type: ChallengeType;
