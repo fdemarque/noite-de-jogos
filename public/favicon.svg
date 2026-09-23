@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#BEE1E6" />
+      <stop offset="50%" stop-color="#E2ECE9" />
+      <stop offset="100%" stop-color="#FFC6FF" />
+    </linearGradient>
+    <linearGradient id="diceGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A0C4FF" />
+      <stop offset="100%" stop-color="#6EA8FE" />
+    </linearGradient>
+    <linearGradient id="diceGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFC6FF" />
+      <stop offset="100%" stop-color="#FF85A1" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#1E293B" flood-opacity="0.12" />
+    </filter>
+  </defs>
+
+  <!-- Background rounded squircle -->
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" />
+
+  <g filter="url(#shadow)">
+    <!-- Blue Die (Filipe) -->
+    <rect x="110" y="150" width="160" height="160" rx="36" fill="url(#diceGrad1)" transform="rotate(-12 190 230)" />
+    <!-- Dots for Blue Die -->
+    <circle cx="160" cy="200" r="14" fill="#FFFFFF" opacity="0.95" />
+    <circle cx="220" cy="260" r="14" fill="#FFFFFF" opacity="0.95" />
+    <circle cx="190" cy="230" r="14" fill="#FFFFFF" opacity="0.95" />
+
+    <!-- Pink Die (Duda) -->
+    <rect x="240" y="200" width="160" height="160" rx="36" fill="url(#diceGrad2)" transform="rotate(14 320 280)" />
+    <!-- Dots for Pink Die (Heart shape in center or 4 dots) -->
+    <circle cx="285" cy="245" r="13" fill="#FFFFFF" opacity="0.95" />
+    <circle cx="355" cy="245" r="13" fill="#FFFFFF" opacity="0.95" />
+    <circle cx="285" cy="315" r="13" fill="#FFFFFF" opacity="0.95" />
+    <circle cx="355" cy="315" r="13" fill="#FFFFFF" opacity="0.95" />
+    <path d="M 320 270 C 314 262 302 264 302 276 C 302 288 320 298 320 298 C 320 298 338 288 338 276 C 338 264 326 262 320 270 Z" fill="#FFFFFF" />
+  </g>
+
+  <!-- Sparkles -->
+  <path d="M 120 110 Q 120 130 140 130 Q 120 130 120 150 Q 120 130 100 130 Q 120 130 120 110 Z" fill="#FFE066" />
+  <path d="M 400 130 Q 400 145 415 145 Q 400 145 400 160 Q 400 145 385 145 Q 400 145 400 130 Z" fill="#FFD166" />
+  <path d="M 230 400 Q 230 415 245 415 Q 230 415 230 430 Q 230 415 215 415 Q 230 415 230 400 Z" fill="#FFF" />
+</svg>
